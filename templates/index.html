@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>LogLens | Security Analysis</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 30px;
+            background: #0b1120;
+            color: #f8fafc;
+            font-family: Arial, sans-serif;
+        }
+
+        .container {
+            max-width: 1150px;
+            margin: auto;
+        }
+
+        h1 {
+            color: #60a5fa;
+            margin-bottom: 8px;
+        }
+
+        .muted {
+            color: #94a3b8;
+        }
+
+        .card {
+            background: #151e30;
+            border: 1px solid #26354d;
+            border-radius: 14px;
+            padding: 22px;
+            margin-bottom: 22px;
+        }
+
+        button {
+            padding: 11px 17px;
+            background: #3b82f6;
+            border: none;
+            border-radius: 7px;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        button:hover {
+            background: #2563eb;
+        }
+
+        .secondary {
+            background: #334155;
+        }
+
+        input[type="file"] {
+            display: block;
+            margin: 20px 0;
+            max-width: 100%;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(
+                auto-fit,
+                minmax(160px, 1fr)
+            );
+            gap: 15px;
+        }
+
+        .stat {
+            background: #0b1120;
+            border-radius: 10px;
+            padding: 18px;
+        }
+
+        .number {
+            font-size: 28px;
+            font-weight: bold;
+            margin-top: 12px;
+        }
+
+        .error {
+            color: #fca5a5;
+            background: #451a1a;
+            padding: 14px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .success {
+            color: #86efac;
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        th, td {
+            padding: 12px;
+            border-bottom: 1px solid #26354d;
+            overflow-wrap: anywhere;
+        }
+
+        th {
+            color: #93c5fd;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 5px 9px;
+            background: #451a1a;
+            color: #fca5a5;
+            border-radius: 6px;
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+<div class="container">
+
+    <header>
+        <h1>LogLens</h1>
+        <p class="muted">Simplified Security Log Analysis</p>
+        <p>Upload server logs to investigate suspicious requests.</p>
+    </header>
+
+    <section class="card">
+        <h2>Analyze Log File</h2>
+
+        {% if error %}
+            <div class="error">{{ error }}</div>
+        {% endif %}
+
+        <form method="POST" action="/" enctype="multipart/form-data">
+            <label for="logfile">Select an Apache/Nginx log file</label>
+
+            <input
+                type="file"
+                id="logfile"
+                name="logfile"
+                accept=".log,.txt"
+                required
+            >
+
+            <button type="submit">Analyze Logs</button>
+        </form>
+
+        <form method="POST" action="/demo" style="margin-top: 15px;">
+            <button type="submit" class="secondary">
+                Load Demo Log
+            </button>
+        </form>
+    </section>
+
+    {% if report %}
+
+    <section class="card">
+        <h2>Analysis Overview</h2>
+
+        {% if report.filename %}
+        <p class="muted">
+            Analyzed file: <strong>{{ report.filename }}</strong>
+        </p>
+        {% endif %}
+
+        <div class="stats">
+            <div class="stat">
+                <div class="muted">Total Lines</div>
+                <div class="number">{{ report.total_lines }}</div>
+            </div>
+
+            <div class="stat">
+                <div class="muted">Parsed Records</div>
+                <div class="number">{{ report.parsed_records }}</div>
+            </div>
+
+            <div class="stat">
+                <div class="muted">Invalid Lines</div>
+                <div class="number">{{ report.invalid_lines }}</div>
+            </div>
+
+            <div class="stat">
+                <div class="muted">Suspicious Findings</div>
+                <div class="number">{{ report.total_findings }}</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>Attack Categories</h2>
+
+        {% if report.attack_counts %}
+            {% for attack, count in report.attack_counts.items() %}
+                <p>
+                    <strong>{{ attack.replace('_', ' ')|title }}</strong>:
+                    {{ count }}
+                </p>
+            {% endfor %}
+        {% else %}
+            <p class="success">No configured attack signatures matched.</p>
+        {% endif %}
+    </section>
+
+        <section class="card">
+        <h2>Attacks Per Hour</h2>
+
+        {% if report.hourly_labels %}
+            <canvas id="hourlyChart" height="100"></canvas>
+
+            <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+            <script>
+                new Chart(document.getElementById("hourlyChart"), {
+                    type: "line",
+                    data: {
+                        labels: {{ report.hourly_labels|tojson }},
+                        datasets: [{
+                            label: "Attacks",
+                            data: {{ report.hourly_values|tojson }},
+                            borderColor: "#60a5fa",
+                            backgroundColor: "#60a5fa",
+                            tension: 0.3
+                        }]
+                    },
+                    options: {
+                        scales: {
+                            y: { beginAtZero: true, ticks: { precision: 0 } }
+                        }
+                    }
+                });
+            </script>
+        {% else %}
+            <p>No attacks to plot.</p>
+        {% endif %}
+    </section>
+        <section class="card">
+        <h2>Export Report</h2>
+        <p class="muted">Download all detected events as a CSV file.</p>
+        <button type="button" id="exportBtn">Download Report (CSV)</button>
+
+        <script>
+            document.getElementById("exportBtn").addEventListener("click", function () {
+                const findings = {{ report.findings|tojson }};
+                const header = ["IP", "Timestamp", "Method", "Path", "Status", "Type", "Severity", "Description"];
+
+                function clean(value) {
+                    let text = String(value);
+                    if (/^[=+\-@]/.test(text)) {
+                        text = "'" + text;
+                    }
+                    return '"' + text.replace(/"/g, '""') + '"';
+                }
+
+                const rows = findings.map(f => [
+                    f.ip, f.timestamp, f.method, f.path,
+                    f.status, f.type, f.severity, f.description
+                ]);
+
+                const csv = [header, ...rows]
+                    .map(row => row.map(clean).join(","))
+                    .join("\n");
+
+                const blob = new Blob([csv], { type: "text/csv" });
+                const link = document.createElement("a");
+                link.href = URL.createObjectURL(blob);
+                link.download = "loglens_report.csv";
+                link.click();
+            });
+        </script>
+    </section>
+    <section class="card">
+        <h2>Top Suspicious IP Addresses</h2>
+
+        {% if report.top_ips %}
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>IP Address</th>
+                            <th>Finding Count</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for ip, count in report.top_ips %}
+                        <tr>
+                            <td>{{ ip }}</td>
+                            <td>{{ count }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p>No suspicious IP addresses identified.</p>
+        {% endif %}
+    </section>
+
+    <section class="card">
+        <h2>Detected Events</h2>
+
+        {% if report.findings %}
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>IP Address</th>
+                            <th>Timestamp</th>
+                            <th>Request</th>
+                            <th>HTTP Status</th>
+                            <th>Attack Type</th>
+                            <th>Severity</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for finding in report.findings %}
+                        <tr>
+                            <td>{{ finding.ip }}</td>
+                            <td>{{ finding.timestamp }}</td>
+                            <td>{{ finding.method }} {{ finding.path }}</td>
+                            <td>{{ finding.status }}</td>
+                            <td>{{ finding.type }}</td>
+                            <td>
+                                <span class="badge">
+                                    {{ finding.severity|upper }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p>No matching attack signatures were found.</p>
+        {% endif %}
+    </section>
+
+    {% endif %}
+
+    <footer class="muted">
+        <p>LogLens | Cybersecurity Internship Project</p>
+        <p>Signature matches are indicators for investigation, not proof of an attack.</p>
+    </footer>
+
+</div>
+</body>
+</html>

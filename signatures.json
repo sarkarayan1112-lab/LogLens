@@ -1,0 +1,32 @@
+{
+  "sql_injection": {
+    "severity": "high",
+    "description": "Possible SQL injection attempt",
+    "patterns": [
+      "(?i)\\bUNION\\s+SELECT\\b",
+      "(?i)\\bOR\\s+1\\s*=\\s*1\\b",
+      "(?i)\\bSELECT\\b.+\\bFROM\\b",
+      "(?i)\\bDROP\\s+TABLE\\b"
+    ]
+  },
+  "xss": {
+    "severity": "high",
+    "description": "Possible cross-site scripting attempt",
+    "patterns": [
+      "(?i)<\\s*script\\b",
+      "(?i)javascript\\s*:",
+      "(?i)\\bonerror\\s*=",
+      "(?i)\\bonload\\s*="
+    ]
+  },
+  "directory_traversal": {
+    "severity": "high",
+    "description": "Possible directory traversal attempt",
+    "patterns": [
+      "\\.\\./",
+      "\\.\\.\\\\",
+      "(?i)%2e%2e%2f",
+      "(?i)%2e%2e%5c"
+    ]
+  }
+}
