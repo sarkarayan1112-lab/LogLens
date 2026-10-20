@@ -109,3 +109,7 @@ A real person should review every finding.
 Cybersecurity internship project.
 
 Demo data uses sample IPs for illustration only.
+
+## Limitations
+
+- On the hosted version, the host's firewall may block uploaded logs that contain attack payloads. Use the **Load Demo Log** button for the demo, or run the app locally.
