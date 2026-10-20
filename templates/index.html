@@ -6,98 +6,405 @@
 
     <title>LogLens | Security Analysis</title>
 
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
     <style>
+        :root {
+            --bg: #070b16;
+            --card: rgba(18, 26, 46, 0.62);
+            --card-border: rgba(148, 163, 255, 0.16);
+            --text: #eef2ff;
+            --muted: #8b9bb8;
+            --blue: #60a5fa;
+            --violet: #a78bfa;
+            --cyan: #22d3ee;
+            --pink: #f472b6;
+            --danger: #f87171;
+            --ok: #4ade80;
+        }
+
         * {
             box-sizing: border-box;
         }
 
-        body {
-            margin: 0;
-            padding: 30px;
-            background: #0b1120;
-            color: #f8fafc;
-            font-family: Arial, sans-serif;
+        html {
+            scroll-behavior: smooth;
         }
 
+        body {
+            margin: 0;
+            padding: 40px 30px 30px;
+            background: var(--bg);
+            color: var(--text);
+            font-family: "Inter", -apple-system, "Segoe UI", Arial, sans-serif;
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* ---------- Animated background ---------- */
+        .bg {
+            position: fixed;
+            inset: 0;
+            z-index: -2;
+            overflow: hidden;
+            background:
+                radial-gradient(1200px 700px at 15% -10%, #111c3d 0%, transparent 60%),
+                radial-gradient(1000px 700px at 100% 110%, #1b1040 0%, transparent 60%),
+                var(--bg);
+        }
+
+        .blob {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(90px);
+            opacity: 0.45;
+            will-change: transform;
+        }
+
+        .blob.b1 {
+            width: 480px;
+            height: 480px;
+            background: #3b82f6;
+            top: -120px;
+            left: -100px;
+            animation: drift1 22s ease-in-out infinite alternate;
+        }
+
+        .blob.b2 {
+            width: 520px;
+            height: 520px;
+            background: #8b5cf6;
+            bottom: -160px;
+            right: -120px;
+            animation: drift2 26s ease-in-out infinite alternate;
+        }
+
+        .blob.b3 {
+            width: 380px;
+            height: 380px;
+            background: #06b6d4;
+            top: 40%;
+            left: 55%;
+            opacity: 0.28;
+            animation: drift3 30s ease-in-out infinite alternate;
+        }
+
+        @keyframes drift1 {
+            from { transform: translate(0, 0) scale(1); }
+            to   { transform: translate(180px, 140px) scale(1.2); }
+        }
+
+        @keyframes drift2 {
+            from { transform: translate(0, 0) scale(1); }
+            to   { transform: translate(-200px, -120px) scale(1.15); }
+        }
+
+        @keyframes drift3 {
+            from { transform: translate(0, 0) scale(1); }
+            to   { transform: translate(-260px, 160px) scale(0.85); }
+        }
+
+        .grid {
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            background-image:
+                linear-gradient(rgba(148, 163, 255, 0.06) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(148, 163, 255, 0.06) 1px, transparent 1px);
+            background-size: 52px 52px;
+            -webkit-mask-image: radial-gradient(ellipse at 50% 30%, #000 20%, transparent 75%);
+            mask-image: radial-gradient(ellipse at 50% 30%, #000 20%, transparent 75%);
+            animation: gridMove 40s linear infinite;
+        }
+
+        @keyframes gridMove {
+            from { background-position: 0 0, 0 0; }
+            to   { background-position: 52px 52px, 52px 52px; }
+        }
+
+        /* ---------- Layout ---------- */
         .container {
             max-width: 1150px;
             margin: auto;
         }
 
+        header {
+            margin-bottom: 30px;
+            animation: fadeUp 0.8s ease both;
+        }
+
+        .live-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            color: #bfdbfe;
+            background: rgba(59, 130, 246, 0.12);
+            border: 1px solid rgba(96, 165, 250, 0.3);
+            margin-bottom: 16px;
+        }
+
+        .live-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--ok);
+            box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%   { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7); }
+            70%  { box-shadow: 0 0 0 10px rgba(74, 222, 128, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); }
+        }
+
         h1 {
-            color: #60a5fa;
-            margin-bottom: 8px;
+            font-size: clamp(40px, 7vw, 64px);
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            margin: 0 0 8px;
+            background: linear-gradient(90deg, #60a5fa, #a78bfa, #22d3ee, #60a5fa);
+            background-size: 300% 100%;
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            color: transparent;
+            animation: shimmer 8s linear infinite;
+        }
+
+        @keyframes shimmer {
+            from { background-position: 0% 50%; }
+            to   { background-position: 300% 50%; }
+        }
+
+        h2 {
+            margin: 0 0 14px;
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -0.01em;
         }
 
         .muted {
-            color: #94a3b8;
+            color: var(--muted);
         }
 
+        .tagline {
+            font-size: 18px;
+            margin: 0 0 6px;
+            color: #c7d2fe;
+            font-weight: 500;
+        }
+
+        /* ---------- Cards ---------- */
         .card {
-            background: #151e30;
-            border: 1px solid #26354d;
-            border-radius: 14px;
-            padding: 22px;
-            margin-bottom: 22px;
+            background: var(--card);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 26px;
+            margin-bottom: 24px;
+            -webkit-backdrop-filter: blur(16px);
+            backdrop-filter: blur(16px);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+            transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+            animation: fadeUp 0.8s ease both;
         }
 
+        .card:hover {
+            transform: translateY(-3px);
+            border-color: rgba(96, 165, 250, 0.4);
+            box-shadow: 0 16px 50px rgba(59, 130, 246, 0.14);
+        }
+
+        .card:nth-of-type(1) { animation-delay: 0.10s; }
+        .card:nth-of-type(2) { animation-delay: 0.20s; }
+        .card:nth-of-type(3) { animation-delay: 0.30s; }
+        .card:nth-of-type(4) { animation-delay: 0.40s; }
+        .card:nth-of-type(5) { animation-delay: 0.50s; }
+        .card:nth-of-type(6) { animation-delay: 0.60s; }
+        .card:nth-of-type(7) { animation-delay: 0.70s; }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(26px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ---------- Buttons and inputs ---------- */
         button {
-            padding: 11px 17px;
-            background: #3b82f6;
+            padding: 12px 22px;
+            background: linear-gradient(135deg, #3b82f6, #7c3aed);
             border: none;
-            border-radius: 7px;
+            border-radius: 12px;
             color: white;
             cursor: pointer;
             font-size: 14px;
+            font-weight: 600;
+            font-family: inherit;
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.3);
+            transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
         }
 
         button:hover {
-            background: #2563eb;
+            transform: translateY(-2px);
+            filter: brightness(1.12);
+            box-shadow: 0 10px 28px rgba(124, 58, 237, 0.45);
+        }
+
+        button:active {
+            transform: translateY(0) scale(0.98);
         }
 
         .secondary {
-            background: #334155;
+            background: rgba(51, 65, 85, 0.7);
+            border: 1px solid rgba(148, 163, 255, 0.22);
+            box-shadow: none;
+        }
+
+        .secondary:hover {
+            background: rgba(71, 85, 105, 0.85);
+            box-shadow: 0 8px 22px rgba(148, 163, 255, 0.15);
+        }
+
+        label {
+            color: #cbd5e1;
+            font-weight: 500;
         }
 
         input[type="file"] {
             display: block;
-            margin: 20px 0;
+            margin: 18px 0;
             max-width: 100%;
+            padding: 16px;
+            width: 100%;
+            color: var(--muted);
+            font-family: inherit;
+            background: rgba(7, 11, 22, 0.55);
+            border: 2px dashed rgba(148, 163, 255, 0.3);
+            border-radius: 14px;
+            transition: border-color 0.25s ease, background 0.25s ease;
         }
 
+        input[type="file"]:hover {
+            border-color: var(--blue);
+            background: rgba(59, 130, 246, 0.07);
+        }
+
+        input[type="file"]::file-selector-button {
+            margin-right: 14px;
+            padding: 8px 14px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(96, 165, 250, 0.18);
+            color: #bfdbfe;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        /* ---------- Stats ---------- */
         .stats {
             display: grid;
-            grid-template-columns: repeat(
-                auto-fit,
-                minmax(160px, 1fr)
-            );
-            gap: 15px;
+            grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+            gap: 16px;
         }
 
         .stat {
-            background: #0b1120;
-            border-radius: 10px;
-            padding: 18px;
+            position: relative;
+            overflow: hidden;
+            background: rgba(7, 11, 22, 0.6);
+            border: 1px solid rgba(148, 163, 255, 0.12);
+            border-radius: 16px;
+            padding: 20px;
+            transition: transform 0.25s ease, border-color 0.25s ease;
+        }
+
+        .stat::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--blue), var(--violet));
+        }
+
+        .stat:nth-child(2)::before { background: linear-gradient(90deg, var(--cyan), var(--blue)); }
+        .stat:nth-child(3)::before { background: linear-gradient(90deg, #fbbf24, #fb923c); }
+        .stat:nth-child(4)::before { background: linear-gradient(90deg, var(--pink), var(--danger)); }
+
+        .stat:hover {
+            transform: translateY(-4px);
+            border-color: rgba(96, 165, 250, 0.4);
         }
 
         .number {
-            font-size: 28px;
-            font-weight: bold;
-            margin-top: 12px;
+            font-size: 38px;
+            font-weight: 800;
+            margin-top: 10px;
+            letter-spacing: -0.02em;
         }
 
+        /* ---------- Attack chips ---------- */
+        .chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 16px;
+            border-radius: 999px;
+            background: rgba(248, 113, 113, 0.1);
+            border: 1px solid rgba(248, 113, 113, 0.3);
+            color: #fecaca;
+            font-weight: 600;
+            transition: transform 0.2s ease, background 0.2s ease;
+        }
+
+        .chip:hover {
+            transform: scale(1.06);
+            background: rgba(248, 113, 113, 0.18);
+        }
+
+        .chip b {
+            background: rgba(248, 113, 113, 0.25);
+            padding: 2px 10px;
+            border-radius: 999px;
+        }
+
+        /* ---------- Messages ---------- */
         .error {
-            color: #fca5a5;
-            background: #451a1a;
+            color: #fecaca;
+            background: rgba(127, 29, 29, 0.45);
+            border: 1px solid rgba(248, 113, 113, 0.35);
             padding: 14px;
-            border-radius: 8px;
+            border-radius: 12px;
             margin-bottom: 20px;
+            animation: shake 0.5s ease;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-6px); }
+            40%, 80% { transform: translateX(6px); }
         }
 
         .success {
-            color: #86efac;
+            color: var(--ok);
+            font-weight: 600;
         }
 
+        /* ---------- Tables ---------- */
         .table-wrap {
             overflow-x: auto;
         }
@@ -109,38 +416,190 @@
         }
 
         th, td {
-            padding: 12px;
-            border-bottom: 1px solid #26354d;
+            padding: 14px 12px;
+            border-bottom: 1px solid rgba(148, 163, 255, 0.12);
             overflow-wrap: anywhere;
         }
 
         th {
             color: #93c5fd;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-weight: 700;
         }
+
+        tbody tr {
+            transition: background 0.2s ease;
+            animation: fadeUp 0.6s ease both;
+        }
+
+        tbody tr:hover {
+            background: rgba(96, 165, 250, 0.09);
+        }
+
+        tbody tr:nth-child(2) { animation-delay: 0.08s; }
+        tbody tr:nth-child(3) { animation-delay: 0.16s; }
+        tbody tr:nth-child(4) { animation-delay: 0.24s; }
+        tbody tr:nth-child(5) { animation-delay: 0.32s; }
 
         .badge {
             display: inline-block;
-            padding: 5px 9px;
-            background: #451a1a;
+            padding: 5px 12px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            background: rgba(248, 113, 113, 0.15);
             color: #fca5a5;
-            border-radius: 6px;
+            border: 1px solid rgba(248, 113, 113, 0.4);
+        }
+
+        .badge.sev-high,
+        .badge.sev-critical {
+            background: rgba(248, 113, 113, 0.15);
+            color: #fca5a5;
+            border-color: rgba(248, 113, 113, 0.4);
+            animation: glowRed 2.2s ease-in-out infinite;
+        }
+
+        .badge.sev-medium {
+            background: rgba(251, 191, 36, 0.14);
+            color: #fde68a;
+            border-color: rgba(251, 191, 36, 0.4);
+        }
+
+        .badge.sev-low {
+            background: rgba(96, 165, 250, 0.14);
+            color: #bfdbfe;
+            border-color: rgba(96, 165, 250, 0.4);
+        }
+
+        @keyframes glowRed {
+            0%, 100% { box-shadow: 0 0 0 rgba(248, 113, 113, 0); }
+            50%      { box-shadow: 0 0 14px rgba(248, 113, 113, 0.55); }
+        }
+
+        /* ---------- Footer ---------- */
+        footer {
+            text-align: center;
+            padding: 20px 0 10px;
+            animation: fadeUp 1s ease both;
+            animation-delay: 0.8s;
+        }
+
+        footer p {
+            margin: 4px 0;
+            font-size: 13px;
+        }
+
+        /* ---------- Scanning overlay ---------- */
+        #scanOverlay {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 22px;
+            background: rgba(7, 11, 22, 0.82);
+            -webkit-backdrop-filter: blur(8px);
+            backdrop-filter: blur(8px);
+        }
+
+        #scanOverlay.show {
+            display: flex;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to   { opacity: 1; }
+        }
+
+        .radar {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            border: 2px solid rgba(96, 165, 250, 0.5);
+            background: radial-gradient(circle, rgba(96, 165, 250, 0.12), transparent 70%);
+        }
+
+        .radar::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            background: conic-gradient(from 0deg, rgba(96, 165, 250, 0.7), transparent 40%);
+            animation: spin 1.4s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .scan-text {
+            font-size: 18px;
+            font-weight: 600;
+            color: #bfdbfe;
+            letter-spacing: 0.04em;
+        }
+
+        .scan-text span {
+            animation: blink 1.2s infinite;
+        }
+
+        .scan-text span:nth-child(2) { animation-delay: 0.2s; }
+        .scan-text span:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes blink {
+            0%, 100% { opacity: 0.2; }
+            50%      { opacity: 1; }
         }
 
         @media (max-width: 600px) {
             body {
-                padding: 15px;
+                padding: 24px 15px;
+            }
+
+            .card {
+                padding: 20px;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
             }
         }
     </style>
 </head>
 
 <body>
+
+<div class="bg">
+    <div class="blob b1"></div>
+    <div class="blob b2"></div>
+    <div class="blob b3"></div>
+</div>
+<div class="grid"></div>
+
+<div id="scanOverlay">
+    <div class="radar"></div>
+    <div class="scan-text">Scanning logs<span>.</span><span>.</span><span>.</span></div>
+</div>
+
 <div class="container">
 
     <header>
+        <div class="live-badge"><span class="live-dot"></span> LIVE SECURITY ANALYSIS</div>
         <h1>LogLens</h1>
-        <p class="muted">Simplified Security Log Analysis</p>
-        <p>Upload server logs to investigate suspicious requests.</p>
+        <p class="tagline">Simplified Security Log Analysis</p>
+        <p class="muted">Upload server logs to investigate suspicious requests.</p>
     </header>
 
     <section class="card">
@@ -150,7 +609,7 @@
             <div class="error">{{ error }}</div>
         {% endif %}
 
-        <form method="POST" action="/" enctype="multipart/form-data">
+        <form method="POST" action="/" enctype="multipart/form-data" class="scan-form">
             <label for="logfile">Select an Apache/Nginx log file</label>
 
             <input
@@ -164,7 +623,7 @@
             <button type="submit">Analyze Logs</button>
         </form>
 
-        <form method="POST" action="/demo" style="margin-top: 15px;">
+        <form method="POST" action="/demo" style="margin-top: 15px;" class="scan-form">
             <button type="submit" class="secondary">
                 Load Demo Log
             </button>
@@ -185,22 +644,22 @@
         <div class="stats">
             <div class="stat">
                 <div class="muted">Total Lines</div>
-                <div class="number">{{ report.total_lines }}</div>
+                <div class="number" data-count="{{ report.total_lines }}">{{ report.total_lines }}</div>
             </div>
 
             <div class="stat">
                 <div class="muted">Parsed Records</div>
-                <div class="number">{{ report.parsed_records }}</div>
+                <div class="number" data-count="{{ report.parsed_records }}">{{ report.parsed_records }}</div>
             </div>
 
             <div class="stat">
                 <div class="muted">Invalid Lines</div>
-                <div class="number">{{ report.invalid_lines }}</div>
+                <div class="number" data-count="{{ report.invalid_lines }}">{{ report.invalid_lines }}</div>
             </div>
 
             <div class="stat">
                 <div class="muted">Suspicious Findings</div>
-                <div class="number">{{ report.total_findings }}</div>
+                <div class="number" data-count="{{ report.total_findings }}">{{ report.total_findings }}</div>
             </div>
         </div>
     </section>
@@ -209,18 +668,20 @@
         <h2>Attack Categories</h2>
 
         {% if report.attack_counts %}
+            <div class="chips">
             {% for attack, count in report.attack_counts.items() %}
-                <p>
-                    <strong>{{ attack.replace('_', ' ')|title }}</strong>:
-                    {{ count }}
-                </p>
+                <div class="chip">
+                    {{ attack.replace('_', ' ')|title }}
+                    <b>{{ count }}</b>
+                </div>
             {% endfor %}
+            </div>
         {% else %}
             <p class="success">No configured attack signatures matched.</p>
         {% endif %}
     </section>
 
-        <section class="card">
+    <section class="card">
         <h2>Attacks Per Hour</h2>
 
         {% if report.hourly_labels %}
@@ -236,13 +697,41 @@
                             label: "Attacks",
                             data: {{ report.hourly_values|tojson }},
                             borderColor: "#60a5fa",
-                            backgroundColor: "#60a5fa",
-                            tension: 0.3
+                            borderWidth: 3,
+                            fill: true,
+                            backgroundColor: function (context) {
+                                const chart = context.chart;
+                                const area = chart.chartArea;
+                                if (!area) {
+                                    return "rgba(96, 165, 250, 0.2)";
+                                }
+                                const gradient = chart.ctx.createLinearGradient(0, area.top, 0, area.bottom);
+                                gradient.addColorStop(0, "rgba(96, 165, 250, 0.45)");
+                                gradient.addColorStop(1, "rgba(167, 139, 250, 0)");
+                                return gradient;
+                            },
+                            pointBackgroundColor: "#a78bfa",
+                            pointBorderColor: "#ffffff",
+                            pointRadius: 5,
+                            pointHoverRadius: 8,
+                            tension: 0.4
                         }]
                     },
                     options: {
+                        animation: { duration: 1600, easing: "easeOutQuart" },
+                        plugins: {
+                            legend: { labels: { color: "#cbd5e1" } }
+                        },
                         scales: {
-                            y: { beginAtZero: true, ticks: { precision: 0 } }
+                            x: {
+                                ticks: { color: "#8b9bb8" },
+                                grid: { color: "rgba(148, 163, 255, 0.08)" }
+                            },
+                            y: {
+                                beginAtZero: true,
+                                ticks: { precision: 0, color: "#8b9bb8" },
+                                grid: { color: "rgba(148, 163, 255, 0.08)" }
+                            }
                         }
                     }
                 });
@@ -251,7 +740,8 @@
             <p>No attacks to plot.</p>
         {% endif %}
     </section>
-        <section class="card">
+
+    <section class="card">
         <h2>Export Report</h2>
         <p class="muted">Download all detected events as a CSV file.</p>
         <button type="button" id="exportBtn">Download Report (CSV)</button>
@@ -286,6 +776,7 @@
             });
         </script>
     </section>
+
     <section class="card">
         <h2>Top Suspicious IP Addresses</h2>
 
@@ -340,7 +831,7 @@
                             <td>{{ finding.status }}</td>
                             <td>{{ finding.type }}</td>
                             <td>
-                                <span class="badge">
+                                <span class="badge sev-{{ finding.severity|lower }}">
                                     {{ finding.severity|upper }}
                                 </span>
                             </td>
@@ -362,5 +853,41 @@
     </footer>
 
 </div>
+
+<script>
+    // Show the scanning overlay when a form is submitted
+    document.querySelectorAll(".scan-form").forEach(function (form) {
+        form.addEventListener("submit", function () {
+            document.getElementById("scanOverlay").classList.add("show");
+        });
+    });
+
+    // If the user comes back with the browser Back button, hide the overlay
+    window.addEventListener("pageshow", function () {
+        document.getElementById("scanOverlay").classList.remove("show");
+    });
+
+    // Count-up animation for the numbers
+    document.querySelectorAll(".number[data-count]").forEach(function (el) {
+        const target = parseInt(el.getAttribute("data-count"), 10);
+        if (isNaN(target) || target === 0) {
+            return;
+        }
+        const duration = 1200;
+        const start = performance.now();
+
+        function tick(now) {
+            const progress = Math.min((now - start) / duration, 1);
+            const eased = 1 - Math.pow(1 - progress, 3);
+            el.textContent = Math.round(target * eased);
+            if (progress < 1) {
+                requestAnimationFrame(tick);
+            }
+        }
+
+        el.textContent = "0";
+        requestAnimationFrame(tick);
+    });
+</script>
 </body>
 </html>
