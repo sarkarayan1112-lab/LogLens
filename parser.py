@@ -2,20 +2,21 @@ import re
 from datetime import datetime
 
 
-# Pattern for Apache/Nginx Combined Log Format
+# Pattern for Apache/Nginx logs.
+# Works with the Combined Log Format (with referer and user agent)
+# and with the plain Common Log Format (without them).
 LOG_PATTERN = re.compile(
     r'(?P<ip>\S+) \S+ \S+ '
     r'\[(?P<timestamp>[^\]]+)\] '
     r'"(?P<method>[A-Z]+) (?P<path>\S+) (?P<protocol>[^"]+)" '
-    r'(?P<status>\d{3}) (?P<size>\S+) '
-    r'"(?P<referer>[^"]*)" '
-    r'"(?P<user_agent>[^"]*)"'
+    r'(?P<status>\d{3}) (?P<size>\S+)'
+    r'(?: "(?P<referer>[^"]*)" "(?P<user_agent>[^"]*)")?'
 )
 
 
 def parse_log_line(line):
     """
-    Parse one Apache/Nginx combined-format log line.
+    Parse one Apache/Nginx log line.
 
     Returns a dictionary if parsing succeeds.
     Returns None if the line does not match the format.
@@ -49,8 +50,8 @@ def parse_log_line(line):
         "protocol": data["protocol"],
         "status": status,
         "size": data["size"],
-        "referer": data["referer"],
-        "user_agent": data["user_agent"]
+        "referer": data["referer"] or "",
+        "user_agent": data["user_agent"] or ""
     }
 
 

@@ -10,13 +10,14 @@ The app is on a free plan, so the first load can take up to a minute.)
 
 ## Features
 
-- Upload a `.log` or `.txt` file in Apache/Nginx combined log format
+- Upload a `.log` or `.txt` file in Apache/Nginx log format (Common or Combined)
 - **Load Demo Log** button that analyzes a pre-loaded file containing attacks
 - Detects SQL injection, XSS, directory traversal and brute force
 - Severity and attack type tag for every finding
 - Overview counts: total lines, parsed records, invalid lines, suspicious findings
 - Attacks-per-hour line chart
 - Top suspicious IP addresses table
+- **Attacker map**: shows where attacking IP addresses are located (GeoIP lookup)
 - Detected events table
 - Export all findings as a CSV report
 - Animated, responsive dashboard
@@ -29,7 +30,8 @@ The app is on a free plan, so the first load can take up to a minute.)
 2. `parser.py` turns each log line into clean fields (IP, time, method, path, status).
 3. `detector.py` compares each record with the attack patterns in `signatures.json`.
    Brute force is detected in `app.py` by counting failed (401) logins from one IP.
-4. The results are sent back to the dashboard.
+4. `geo.py` looks up the location of the attacking IP addresses for the map.
+5. The results are sent back to the dashboard.
 
 More diagrams and a plain-words explanation are in the
 [How_it_works](How_it_works/How_it_works.md) folder.
@@ -41,6 +43,7 @@ LogLens/
 ├── app.py               Flask app: upload, analysis, dashboard
 ├── parser.py            Regex parser for Apache/Nginx log lines
 ├── detector.py          Attack detection using the signatures
+├── geo.py               GeoIP lookup for the attacker map
 ├── signatures.json      Attack patterns (regex) with type and severity
 ├── requirements.txt     Python packages
 ├── templates/
@@ -54,7 +57,8 @@ LogLens/
 ## Tech Stack
 
 - **Backend:** Python, Flask, regular expressions
-- **Frontend:** HTML, CSS, JavaScript, Chart.js
+- **Frontend:** HTML, CSS, JavaScript, Chart.js, Leaflet (map)
+- **GeoIP:** ip-api.com free batch service (no key needed)
 - **Hosting:** Render (gunicorn)
 
 ## Run It on Your Computer
@@ -90,8 +94,9 @@ free hosting plan. Details and future improvements are in
 ## Limitations
 
 - Maximum upload size is 10 MB.
-- Supports the Apache/Nginx combined log format only.
-- No geo-map of attacker locations yet.
+- Supports Apache/Nginx Common and Combined log formats only.
+- The map needs public IP addresses. Private or reserved addresses (for example test addresses such as 203.0.113.x) cannot be located.
+- GeoIP uses a free service meant for non-commercial use, limited to a few lookups per minute.
 - No background job queue yet (listed as future work in the performance note).
 
 ## Disclaimer
@@ -102,3 +107,5 @@ A real person should review every finding.
 ## About
 
 Cybersecurity internship project.
+
+Demo data uses sample IPs for illustration only.

@@ -7,6 +7,7 @@ from tempfile import NamedTemporaryFile
 
 from parser import parse_log_line
 from detector import detect_attacks, load_signatures
+from geo import build_geo
 
 
 app = Flask(__name__)
@@ -91,8 +92,9 @@ def detect_brute_force(records, threshold=5, window_seconds=60):
 # ==========================================
 
 def analyze_lines(lines):
-    signatures = load_signatures()
     """Parse log lines and identify suspicious requests."""
+
+    signatures = load_signatures()
 
     total_lines = 0
     parsed_records = 0
@@ -151,6 +153,7 @@ def analyze_lines(lines):
             "severity": alert["severity"],
             "description": alert["description"]
         })
+
     # Count findings per hour for the timeline chart.
     hourly_counts = Counter()
 
@@ -165,6 +168,10 @@ def analyze_lines(lines):
     hourly_values = [
         hourly_counts[hour] for hour in sorted(hourly_counts)
     ]
+
+    # Find where the attacking IP addresses are located (GeoIP).
+    geo = build_geo(ip_counts)
+
     # Return the complete analysis report.
     return {
         "total_lines": total_lines,
@@ -175,7 +182,10 @@ def analyze_lines(lines):
         "top_ips": ip_counts.most_common(10),
         "findings": findings,
         "hourly_labels": hourly_labels,
-        "hourly_values": hourly_values
+        "hourly_values": hourly_values,
+        "geo_points": geo["points"],
+        "country_counts": geo["country_counts"],
+        "geo_unlocated": geo["unlocated"]
     }
 
 
@@ -294,4 +304,4 @@ def file_too_large(error):
 # ==========================================
 
 if __name__ == "__main__":
-    app.run(port=5000)
+    app.run()

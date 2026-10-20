@@ -10,6 +10,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+
     <style>
         :root {
             --bg: #070b16;
@@ -480,6 +482,62 @@
             50%      { box-shadow: 0 0 14px rgba(248, 113, 113, 0.55); }
         }
 
+        /* ---------- Attacker map ---------- */
+        #attackMap {
+            height: 400px;
+            width: 100%;
+            border-radius: 16px;
+            border: 1px solid rgba(148, 163, 255, 0.2);
+            overflow: hidden;
+            background: #0b1220;
+        }
+
+        .leaflet-popup-content-wrapper {
+            background: #121a2e;
+            color: #eef2ff;
+            border-radius: 12px;
+        }
+
+        .leaflet-popup-tip {
+            background: #121a2e;
+        }
+
+        .map-note {
+            margin: 12px 0 0;
+            font-size: 13px;
+        }
+
+        .country-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        .country-chip {
+            padding: 8px 14px;
+            border-radius: 999px;
+            background: rgba(96, 165, 250, 0.12);
+            border: 1px solid rgba(96, 165, 250, 0.3);
+            color: #bfdbfe;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .country-chip b {
+            margin-left: 6px;
+            color: #fff;
+        }
+
+        .pulse-marker {
+            animation: markerPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes markerPulse {
+            0%, 100% { opacity: 0.9; }
+            50%      { opacity: 0.45; }
+        }
+
         /* ---------- Footer ---------- */
         footer {
             text-align: center;
@@ -575,6 +633,9 @@
                 animation-iteration-count: 1 !important;
                 transition-duration: 0.01ms !important;
             }
+        }
+        .dark-tiles {
+            filter: grayscale(1) invert(1) brightness(0.85) contrast(1.1);
         }
     </style>
 </head>
@@ -738,6 +799,78 @@
             </script>
         {% else %}
             <p>No attacks to plot.</p>
+        {% endif %}
+    </section>
+
+    <section class="card">
+        <h2>Attacker Locations</h2>
+
+        {% if report.geo_points %}
+            <div id="attackMap"></div>
+
+            <div class="country-list">
+                {% for country, count in report.country_counts %}
+                    <div class="country-chip">{{ country }}<b>{{ count }}</b></div>
+                {% endfor %}
+            </div>
+
+            {% if report.geo_unlocated %}
+            <p class="muted map-note">
+                {{ report.geo_unlocated }} IP address(es) could not be placed on the map
+                (private, reserved or unknown addresses).
+            </p>
+            {% endif %}
+
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+            <script>
+                (function () {
+                    const points = {{ report.geo_points|tojson }};
+                    const map = L.map("attackMap", { worldCopyJump: true }).setView([20, 0], 2);
+
+                    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+                        attribution: "&copy; OpenStreetMap contributors",
+                        maxZoom: 18,
+                        className: "dark-tiles"
+                    }).addTo(map);
+
+                    const bounds = [];
+
+                    points.forEach(function (p) {
+                        const radius = Math.min(8 + p.count * 3, 26);
+
+                        L.circleMarker([p.lat, p.lon], {
+                            radius: radius,
+                            color: "#f87171",
+                            fillColor: "#ef4444",
+                            fillOpacity: 0.55,
+                            weight: 2,
+                            className: "pulse-marker"
+                        })
+                        .addTo(map)
+                        .bindPopup(
+                            "<strong>" + p.ip + "</strong><br>" +
+                            (p.city ? p.city + ", " : "") + p.country + "<br>" +
+                            p.count + " finding(s)"
+                        );
+
+                        bounds.push([p.lat, p.lon]);
+                    });
+
+                    if (bounds.length > 1) {
+                        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 5 });
+                    } else if (bounds.length === 1) {
+                        map.setView(bounds[0], 4);
+                    }
+
+                    // The card fades in, so recalculate the map size afterwards.
+                    setTimeout(function () { map.invalidateSize(); }, 900);
+                })();
+            </script>
+        {% else %}
+            <p class="muted">
+                No attacker locations to show. The IP addresses in this log are
+                private or reserved, or the location service was not reachable.
+            </p>
         {% endif %}
     </section>
 
