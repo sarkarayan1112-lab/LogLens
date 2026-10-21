@@ -98,6 +98,7 @@ free hosting plan. Details and future improvements are in
 - The map needs public IP addresses. Private or reserved addresses (for example test addresses such as 203.0.113.x) cannot be located.
 - GeoIP uses a free service meant for non-commercial use, limited to a few lookups per minute.
 - No background job queue yet (listed as future work in the performance note).
+- On the hosted version, the host's firewall may block uploaded logs that contain attack payloads. Use the **Load Demo Log** button for the demo, or run the app locally.
 
 ## Disclaimer
 
@@ -110,6 +111,3 @@ Cybersecurity internship project.
 
 Demo data uses sample IPs for illustration only.
 
-## Limitations
-
-- On the hosted version, the host's firewall may block uploaded logs that contain attack payloads. Use the **Load Demo Log** button for the demo, or run the app locally.
