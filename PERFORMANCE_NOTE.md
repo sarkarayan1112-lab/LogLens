@@ -60,9 +60,8 @@ and can be raised on a bigger server.
 
 1. **Keep only what is needed in memory.** Brute-force detection only needs failed
    (401) login records, so only those would be stored, instead of every parsed line.
-2. **Add an async job queue.** Upload, get a Job ID, check the status, then view the
-   report. This is the flow described in Phase 4 of the brief. A tool such as Celery
-   or RQ with Redis would run the parsing in the background.
+2. **Move to a separate worker queue.** Uploads already run as background jobs
+  with a Job ID, and the page checks the status. The jobs run inside the web app. A tool such as Celery or RQ with Redis would run the parsing in a separate worker, which suits larger files and many users.
 3. **Paginate the results** so only a limited number of findings is shown per page.
 4. **Raise the file limit** after moving to a larger server.
 
@@ -73,6 +72,6 @@ and can be raised on a bigger server.
 | Is the whole file loaded into memory? | No. It is streamed. |
 | How is the upload handled? | In 64 KB chunks, saved to a temporary file. |
 | How is the file read? | One line at a time, using a generator. |
-| Where does the processing happen? | In the Python backend. |
+| Where does the processing happen? | In a background thread of the Python backend. |
 | What is the file size limit? | 10 MB, because of the free hosting plan. |
-| Is there a job queue? | Not yet. It is listed as future work. |
+| Is there a job queue? | Yes, a simple one. Uploads run as background jobs with a Job ID and a status check. A separate worker (Celery or RQ) is future work. |

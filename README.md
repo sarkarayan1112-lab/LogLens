@@ -20,6 +20,7 @@ The app is on a free plan, so the first load can take up to a minute.)
 - **Attacker map**: shows where attacking IP addresses are located (GeoIP lookup)
 - Detected events table
 - Export all findings as a CSV report
+- Background job processing with a Job ID and status check
 - Animated, responsive dashboard
 
 ## How It Works
@@ -97,7 +98,7 @@ free hosting plan. Details and future improvements are in
 - Supports Apache/Nginx Common and Combined log formats only.
 - The map needs public IP addresses. Private or reserved addresses (for example test addresses such as 203.0.113.x) cannot be located.
 - GeoIP uses a free service meant for non-commercial use, limited to a few lookups per minute.
-- No background job queue yet (listed as future work in the performance note).
+- - Uploads run as background jobs with a Job ID. The page checks the job status and shows the report when it is done. Jobs run inside the web app instead of a separate queue such as Celery and Redis, which keeps it simple for the free hosting plan.
 - On the hosted version, the host's firewall may block uploaded logs that contain attack payloads. Use the **Load Demo Log** button for the demo, or run the app locally.
 
 ## Disclaimer
