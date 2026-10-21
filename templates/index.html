@@ -529,13 +529,57 @@
             color: #fff;
         }
 
-        .pulse-marker {
-            animation: markerPulse 2s ease-in-out infinite;
+        /* Turn the light OpenStreetMap tiles into a dark map */
+        #attackMap .leaflet-tile-pane {
+            filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9) saturate(0.7);
         }
 
-        @keyframes markerPulse {
-            0%, 100% { opacity: 0.9; }
-            50%      { opacity: 0.45; }
+        /* ---------- Job status card ---------- */
+        .job-row {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .job-row .radar {
+            width: 64px;
+            height: 64px;
+            flex-shrink: 0;
+        }
+
+        .job-code {
+            font-family: "SF Mono", Menlo, Consolas, monospace;
+            font-size: 13px;
+            padding: 3px 8px;
+            border-radius: 6px;
+            background: rgba(96, 165, 250, 0.12);
+            color: #bfdbfe;
+            word-break: break-all;
+        }
+
+        .job-status {
+            font-size: 18px;
+            font-weight: 700;
+            color: #bfdbfe;
+            text-transform: capitalize;
+        }
+
+        /* ---------- Table fixes for narrow windows ---------- */
+        th,
+        .badge {
+            white-space: nowrap;
+        }
+
+        .events-table {
+            min-width: 940px;
+        }
+
+        .events-table td:nth-child(1),
+        .events-table td:nth-child(2),
+        .events-table td:nth-child(4),
+        .events-table td:nth-child(5) {
+            white-space: nowrap;
         }
 
         /* ---------- Footer ---------- */
@@ -634,9 +678,6 @@
                 transition-duration: 0.01ms !important;
             }
         }
-        .dark-tiles {
-            filter: grayscale(1) invert(1) brightness(0.85) contrast(1.1);
-        }
     </style>
 </head>
 
@@ -691,6 +732,52 @@
         </form>
     </section>
 
+    {% if job and job.status != 'done' %}
+    <section class="card" id="jobCard">
+        <h2>Analysis Job</h2>
+        <p class="muted">Job ID: <span class="job-code">{{ job.id }}</span></p>
+
+        {% if job.status == 'failed' %}
+            <div class="error">{{ job.error or 'The log file could not be analyzed.' }}</div>
+        {% else %}
+            <div class="job-row">
+                <div class="radar"></div>
+                <div>
+                    <div class="muted">Status</div>
+                    <div class="job-status" id="jobStatus">{{ job.status }}</div>
+                </div>
+            </div>
+
+            <script>
+                (function () {
+                    const jobId = "{{ job.id }}";
+                    const statusEl = document.getElementById("jobStatus");
+
+                    function poll() {
+                        fetch("/status/" + jobId)
+                            .then(function (response) { return response.json(); })
+                            .then(function (data) {
+                                statusEl.textContent = data.status || "processing";
+
+                                if (data.status === "done" || data.status === "failed") {
+                                    window.location.reload();
+                                    return;
+                                }
+
+                                setTimeout(poll, 1000);
+                            })
+                            .catch(function () {
+                                setTimeout(poll, 2000);
+                            });
+                    }
+
+                    setTimeout(poll, 700);
+                })();
+            </script>
+        {% endif %}
+    </section>
+    {% endif %}
+
     {% if report %}
 
     <section class="card">
@@ -699,6 +786,13 @@
         {% if report.filename %}
         <p class="muted">
             Analyzed file: <strong>{{ report.filename }}</strong>
+        </p>
+        {% endif %}
+
+        {% if job %}
+        <p class="muted">
+            Job ID: <span class="job-code">{{ job.id }}</span>
+            &nbsp;|&nbsp; Status: done
         </p>
         {% endif %}
 
@@ -825,12 +919,11 @@
             <script>
                 (function () {
                     const points = {{ report.geo_points|tojson }};
-                    const map = L.map("attackMap", { worldCopyJump: true }).setView([20, 0], 2);
+                    const map = L.map("attackMap", { worldCopyJump: true, minZoom: 1 }).setView([20, 0], 2);
 
                     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
                         attribution: "&copy; OpenStreetMap contributors",
-                        maxZoom: 18,
-                        className: "dark-tiles"
+                        maxZoom: 18
                     }).addTo(map);
 
                     const bounds = [];
@@ -843,8 +936,7 @@
                             color: "#f87171",
                             fillColor: "#ef4444",
                             fillOpacity: 0.55,
-                            weight: 2,
-                            className: "pulse-marker"
+                            weight: 2
                         })
                         .addTo(map)
                         .bindPopup(
@@ -856,14 +948,21 @@
                         bounds.push([p.lat, p.lon]);
                     });
 
-                    if (bounds.length > 1) {
-                        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 5 });
-                    } else if (bounds.length === 1) {
-                        map.setView(bounds[0], 4);
+                    function fitView() {
+                        map.invalidateSize();
+
+                        if (bounds.length > 1) {
+                            map.fitBounds(bounds, { padding: [50, 50], maxZoom: 4 });
+                        } else if (bounds.length === 1) {
+                            map.setView(bounds[0], 4);
+                        }
                     }
 
-                    // The card fades in, so recalculate the map size afterwards.
-                    setTimeout(function () { map.invalidateSize(); }, 900);
+                    // The card fades in, so fit the view again once layout is final.
+                    fitView();
+                    setTimeout(fitView, 400);
+                    setTimeout(fitView, 1200);
+                    window.addEventListener("load", fitView);
                 })();
             </script>
         {% else %}
@@ -943,7 +1042,7 @@
 
         {% if report.findings %}
             <div class="table-wrap">
-                <table>
+                <table class="events-table">
                     <thead>
                         <tr>
                             <th>IP Address</th>

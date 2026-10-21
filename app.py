@@ -1,9 +1,15 @@
-from flask import Flask, render_template, request
-from pathlib import Path
+import json
+import os
+import threading
+import time
+import uuid
 from collections import Counter, defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime
+from pathlib import Path
+from tempfile import gettempdir, mkstemp
+
+from flask import Flask, jsonify, redirect, render_template, request, url_for
 from werkzeug.utils import secure_filename
-from tempfile import NamedTemporaryFile
 
 from parser import parse_log_line
 from detector import detect_attacks, load_signatures
@@ -209,13 +215,134 @@ def analyze_file(file_path):
 
 
 # ==========================================
-# MAIN DASHBOARD
+# BACKGROUND JOBS (JOB ID + STATUS)
+# ==========================================
+#
+# Flow:  Upload  ->  get a Job ID  ->  poll the status  ->  view the report
+#
+# The analysis runs in a background thread, so the web page answers
+# immediately. Each job is saved as a small JSON file in a temporary
+# folder. Because the state lives in files (not in one worker's memory),
+# it works even if the server runs more than one worker process.
+
+JOBS_DIR = Path(gettempdir()) / "loglens_jobs"
+JOBS_DIR.mkdir(parents=True, exist_ok=True)
+
+JOB_MAX_AGE_SECONDS = 60 * 60  # old jobs are deleted after one hour
+
+
+def is_valid_job_id(job_id):
+    """Job IDs are 32 hexadecimal characters (blocks path tricks)."""
+    return (
+        len(job_id) == 32
+        and all(char in "0123456789abcdef" for char in job_id)
+    )
+
+
+def job_file(job_id):
+    return JOBS_DIR / f"{job_id}.json"
+
+
+def save_job(job):
+    """Write a job file safely (write a temp file, then swap it in)."""
+    target = job_file(job["id"])
+    temp = target.with_suffix(".tmp")
+
+    with open(temp, "w", encoding="utf-8") as file:
+        json.dump(job, file)
+
+    os.replace(temp, target)
+
+
+def load_job(job_id):
+    """Return the job dictionary, or None if it does not exist."""
+    if not is_valid_job_id(job_id):
+        return None
+
+    try:
+        with open(job_file(job_id), "r", encoding="utf-8") as file:
+            return json.load(file)
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return None
+
+
+def cleanup_old_jobs():
+    """Delete job files older than JOB_MAX_AGE_SECONDS."""
+    cutoff = time.time() - JOB_MAX_AGE_SECONDS
+
+    for path in JOBS_DIR.glob("*.json"):
+        try:
+            if path.stat().st_mtime < cutoff:
+                path.unlink()
+        except OSError:
+            pass
+
+
+def run_job(job_id, file_path, filename, delete_when_done):
+    """Runs in a background thread: analyze the file and save the result."""
+
+    job = load_job(job_id) or {
+        "id": job_id,
+        "filename": filename,
+        "created": time.time()
+    }
+
+    job["status"] = "processing"
+    save_job(job)
+
+    try:
+        report = analyze_file(file_path)
+        report["filename"] = filename
+
+        job["report"] = report
+        job["status"] = "done"
+
+    except Exception:
+        job["status"] = "failed"
+        job["error"] = "The log file could not be analyzed."
+
+    finally:
+        job["finished"] = time.time()
+        save_job(job)
+
+        if delete_when_done:
+            try:
+                os.remove(file_path)
+            except OSError:
+                pass
+
+
+def start_job(file_path, filename, delete_when_done):
+    """Create a job, start it in the background, return its Job ID."""
+
+    cleanup_old_jobs()
+
+    job_id = uuid.uuid4().hex
+
+    save_job({
+        "id": job_id,
+        "filename": filename,
+        "status": "queued",
+        "created": time.time()
+    })
+
+    worker = threading.Thread(
+        target=run_job,
+        args=(job_id, file_path, filename, delete_when_done),
+        daemon=True
+    )
+    worker.start()
+
+    return job_id
+
+
+# ==========================================
+# MAIN DASHBOARD (UPLOAD)
 # ==========================================
 
 @app.route("/", methods=["GET", "POST"])
 def home():
 
-    report = None
     error = None
 
     if request.method == "POST":
@@ -232,11 +359,13 @@ def home():
             error = "Please upload a .log or .txt file."
 
         else:
+            # Stream the upload to a temporary file in 64 KB chunks.
+            file_descriptor, temp_path = mkstemp(suffix=".log")
+
             try:
-                with NamedTemporaryFile(mode="wb+") as temporary_file:
+                total_bytes = 0
 
-                    total_bytes = 0
-
+                with os.fdopen(file_descriptor, "wb") as temporary_file:
                     while True:
                         chunk = uploaded_file.stream.read(64 * 1024)
 
@@ -252,17 +381,27 @@ def home():
 
                         temporary_file.write(chunk)
 
-                    temporary_file.flush()
-
-                    report = analyze_file(temporary_file.name)
-                    report["filename"] = secure_filename(uploaded_file.filename)
-
             except ValueError as exc:
                 error = str(exc)
 
+                try:
+                    os.remove(temp_path)
+                except OSError:
+                    pass
+
+            else:
+                job_id = start_job(
+                    temp_path,
+                    secure_filename(uploaded_file.filename),
+                    delete_when_done=True
+                )
+
+                return redirect(url_for("report_page", job_id=job_id))
+
     return render_template(
         "index.html",
-        report=report,
+        report=None,
+        job=None,
         error=error
     )
 
@@ -279,12 +418,56 @@ def demo():
     if not demo_file.is_file():
         return "Demo log file was not found.", 404
 
-    report = analyze_file(demo_file)
-    report["filename"] = demo_file.name
+    job_id = start_job(
+        str(demo_file),
+        demo_file.name,
+        delete_when_done=False
+    )
+
+    return redirect(url_for("report_page", job_id=job_id))
+
+
+# ==========================================
+# JOB STATUS AND REPORT
+# ==========================================
+
+@app.route("/status/<job_id>")
+def job_status(job_id):
+    """Small JSON answer used by the page to poll the job."""
+
+    job = load_job(job_id)
+
+    if job is None:
+        return jsonify({"error": "Job not found"}), 404
+
+    return jsonify({
+        "job_id": job["id"],
+        "status": job["status"],
+        "error": job.get("error")
+    })
+
+
+@app.route("/report/<job_id>")
+def report_page(job_id):
+    """Show the waiting screen, or the finished report."""
+
+    job = load_job(job_id)
+
+    if job is None:
+        return render_template(
+            "index.html",
+            report=None,
+            job=None,
+            error="This job was not found. It may have expired. "
+                  "Please upload the file again."
+        ), 404
+
+    report = job.get("report") if job["status"] == "done" else None
 
     return render_template(
         "index.html",
         report=report,
+        job=job,
         error=None
     )
 
@@ -304,4 +487,4 @@ def file_too_large(error):
 # ==========================================
 
 if __name__ == "__main__":
-    app.run()
+    app.run(port=5000)
